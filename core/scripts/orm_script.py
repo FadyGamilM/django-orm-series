@@ -23,7 +23,11 @@ def run():
 
     # get_ratings_given_resturant()
 
-    get_user_rating_on_specific_resturant_or_create_new_one(1, 2)
+    # get_user_rating_on_specific_resturant_or_create_new_one(1, 2)
+
+    print(is_validtion_working_on_db_level_by_default())
+
+    print(is_validtion_working_on_db_level_by_default_with_right_vaidation())
 
     for query in connection.queries:
         print()
@@ -107,3 +111,20 @@ def get_user_rating_on_specific_resturant_or_create_new_one(user_id, resturant_i
         else:
             print('rating already exists')
     print(rating)
+
+
+def is_validtion_working_on_db_level_by_default() -> Rating:
+    resturant = Resturant.objects.all()[1]
+    user = User.objects.first()
+    rating = Rating(resturant=resturant, user=user, stars=9)
+    rating.save()
+    return rating
+
+
+def is_validtion_working_on_db_level_by_default_with_right_vaidation() -> Rating:
+    resturant = Resturant.objects.all()[1]
+    user = User.objects.first()
+    rating = Rating(resturant=resturant, user=user, stars=9)
+    rating.full_clean()
+    rating.save()
+    return rating
