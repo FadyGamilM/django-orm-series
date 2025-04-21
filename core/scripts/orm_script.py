@@ -25,9 +25,13 @@ def run():
 
     # get_user_rating_on_specific_resturant_or_create_new_one(1, 2)
 
-    print(is_validtion_working_on_db_level_by_default())
+    # print(is_validtion_working_on_db_level_by_default())
+    # print(is_validtion_working_on_db_level_by_default_with_right_vaidation())
 
-    print(is_validtion_working_on_db_level_by_default_with_right_vaidation())
+    # update_resturant_name()
+
+    get_all_ratings_and_their_related_resturants_optimized_starting_from_many_part()
+   # update_resturant_name_with_filter()
 
     for query in connection.queries:
         print()
@@ -128,3 +132,39 @@ def is_validtion_working_on_db_level_by_default_with_right_vaidation() -> Rating
     rating.full_clean()
     rating.save()
     return rating
+
+
+def update_resturant_name():
+    resturant = Resturant.objects.first()
+    resturant.name = 'indian spices - newyork branch'
+    # resturant.save() > This will update the entire fields alongside the field/s we need to update and this is costly for large db tables .. so to optimize this we add this argument `updated_fields=['field1_name', 'field2_name', ....]`
+    resturant.save(update_fields=['name'])
+
+
+def update_resturant_name_with_filter():
+    no_of_updated_resturant = Resturant.objects.filter(name__icontains='Spice').update(
+        opened_at=timezone.now() - timezone.timedelta(days=365))
+    print(no_of_updated_resturant)
+    return
+
+
+def get_all_resturants_with_ratings_optimized_starting_from_one_part():
+    '''
+    In this function i am demonstrating the fix of the N+1 problem when we start/have the one-side of the one-to-many relation and we want to avoid N+1 queries for the many-side of the one-to-many --> so here we have the resturant and we want to prefetch all ratings 
+    '''
+    # prefetch the related ratings and sales
+    # and for sales also prefetch the related user at once
+    resturants = Resturant.objects.prefetch_related('ratings__user', 'sales')
+    for resturant in resturants:
+        print(f"{resturant.name}: {[str(r) for r in resturant.ratings.all()]}")
+
+
+def get_all_ratings_and_their_related_resturants_optimized_starting_from_many_part():
+    '''
+    In this function i am demonstrating the fix of the N+1 problem when we start/have the many-side of the one-to-many relation and we want to avoid N+1 queries for the one-side of the one-to-many --> so here we have the rating and we want to prefetch all resturants 
+    ==> This will make a single Join query and this is better than the above but each one has it's own usecase
+    '''
+    ratings = Rating.objects.filter(
+        stars__gt=2).select_related('resturant')
+    for rating in ratings:
+        print(f"{rating.resturant.name}: {rating.stars}, {rating.comment}")

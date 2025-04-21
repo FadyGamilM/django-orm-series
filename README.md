@@ -21,7 +21,7 @@ learning django orm from this course : `https://www.youtube.com/playlist?list=PL
 ```
 
 # Notes about Queries in Django
-1. Django queries are lazely executed:
+### 1. Django queries are lazely executed:
 
 ```python
 def select_first_resurant() -> Resturant:
@@ -30,7 +30,7 @@ def select_first_resurant() -> Resturant:
 ```
 
 
-2. Queryset .vs. Single object ? 
+### 2. Queryset .vs. Single object ? 
 ```python
 def get_resturant_name_by_rating_id(rating_id):
     rating = Rating.objects.filter(id=rating_id)
@@ -47,4 +47,14 @@ def get_resturant_name_by_rating_id(rating_id):
     rating = Rating.objects.get(id=rating_id)
     resturant = rating.resturant  # NOT VALID and NOT COMPILED
     return resturant.name
+```
+
+### 3. Applying your model fields validation before saving it to the database 
+- we can do this by overriding the `save()` method to call the `full_clean()` before actual saving
+```python
+    def save(sefl, *args, **kwargs):
+        # this will validate the model fields
+        sefl.full_clean()
+        # this will call the parent class save method
+        super().save(*args, **kwargs)
 ```
