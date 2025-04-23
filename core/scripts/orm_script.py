@@ -30,8 +30,11 @@ def run():
 
     # update_resturant_name()
 
-    get_all_ratings_and_their_related_resturants_optimized_starting_from_many_part()
-   # update_resturant_name_with_filter()
+    # get_all_ratings_and_their_related_resturants_optimized_starting_from_many_part()
+
+    # get_all_5_stars_ratings_resturants_and_fetch_their_sales_starting_with_ratings()
+
+    get_all_5_stars_ratings_resturants_and_fetch_their_sales_starting_with_resturants()
 
     for query in connection.queries:
         print()
@@ -165,6 +168,41 @@ def get_all_ratings_and_their_related_resturants_optimized_starting_from_many_pa
     ==> This will make a single Join query and this is better than the above but each one has it's own usecase
     '''
     ratings = Rating.objects.filter(
-        stars__gt=2).select_related('resturant')
+        stars__gt=2).select_related('resturant', 'user')
     for rating in ratings:
         print(f"{rating.resturant.name}: {rating.stars}, {rating.comment}")
+
+
+def get_all_5_stars_ratings_resturants_and_fetch_their_sales_starting_with_ratings():
+    """
+    This is the way i think about this query : 
+    SELECT ru.id, ru.name, s.income, r.stars
+    FROM Rating as r JOIN Resturant as ru ON ru.id = r.resturant_id
+    WHERE r.stars = 5 
+    JOIN Sales as s ON s.resturant_id = r.id;
+    """
+    ratings_with_5stars = Rating.objects.filter(
+        stars=5).select_related('resturant').prefetch_related('resturant__sales')
+    for rating in ratings_with_5stars:
+        print(f"{rating.resturant.name}: {rating.stars}, {rating.comment}")
+        for sale in rating.resturant.sales.all():
+            print(f"Sale: {sale.income} at {sale.saled_at}")
+
+
+def get_all_5_stars_ratings_resturants_and_fetch_their_sales_starting_with_resturants():
+    """
+    This is the way i think about this query : 
+    SELECT ru.id, ru.name, s.income, r.stars
+    FROM Rating as r JOIN Resturant as ru ON ru.id = r.resturant_id
+    WHERE r.stars = 5 
+    JOIN Sales as s ON s.resturant_id = r.id;
+    """
+    resturants_with_5stars_ratings = Resturant.objects.prefetch_related(
+        'ratings', 'sales').filter(ratings__stars=5)
+    print(resturants_with_5stars_ratings)
+    # Executed Queries via ORM:
+    # 1. Resturant Join Ratings to get resturants data with ratings = 5
+    # -------> (issue) after it joins the two tables, it fetches the Resturant fields only due to orm behavior
+    # 2. Select From Ratings again where resturant_id IN the selected Resturants from query.1
+    # -------> (why) this query due to the prefetch_related('ratings')
+    # 3. select From Sales where resturant_id IN the selected Resturants from query.1
