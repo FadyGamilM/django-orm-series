@@ -1,3 +1,4 @@
+from functools import partial
 from core.models import Resturant, Rating, Sale, Staff
 from django.utils import timezone
 from django.db import connection
@@ -5,6 +6,8 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from pprint import pprint
 from django.db.models import Sum, Prefetch
+from django.db.models import *
+from django.db.models.functions import Length, Coalesce
 
 
 def run():
@@ -51,7 +54,25 @@ def run():
 
     # filter_associations_for_staff()
 
-    filter_associations_for_resturant()
+    # filter_associations_for_resturant()
+
+    # select_with_specific_values_only()
+
+    # select_resturant_names_with_italian_cusine_having_ratings_less_than3()
+
+    # select_avg_sales_amount()
+
+    # get_resturant_name_and_total_sales_per_resturant()
+
+    # get_resturant_rating_per_resturant_causine()
+
+    # update_rating_not_optimized()
+
+    # update_rating_oprimized()
+
+    # update_rating_optimized_v2()
+
+    protect_your_app_from_null_values_using_coalesce()
 
     for query in connection.queries:
         print()
@@ -379,3 +400,82 @@ def filter_associations_for_resturant():
     resturant = Resturant.objects.get(pk=1)
     resturant_staff = resturant.staffs.filter(name__icontains='ahmed')
     print(resturant_staff)
+
+
+# selecting one object will return a dict
+# selecting multiple objects will return a queryset
+def select_with_specific_values_only():
+    resturant = Resturant.objects.values(
+        'name', 'opened_at', 'causine').first()
+    print(resturant)
+
+
+def select_resturant_names_with_italian_cusine_having_ratings_less_than3():
+    result = Rating.objects.filter(
+        stars__lt=3).values('resturant__name', 'stars')
+    print(result)
+
+
+def select_avg_sales_amount():
+    res = Sale.objects.aggregate(Avg('income'), Sum('income'))
+    print(res)
+
+
+def get_resturant_name_and_total_sales_per_resturant():
+    res = Resturant.objects.annotate(total_sale=Sum(
+        'sales__income')).values('name', 'total_sale')
+    print(res)
+
+
+def get_resturant_rating_per_resturant_causine():
+    res = Resturant.objects.values('causine').annotate(Count('ratings'))
+    print(res)
+
+
+def update_rating_not_optimized():
+    '''usually, when we need to update a record, we pull it in your app memory .. update the value and send it back, and this is what django will do if we did the following : '''
+    rating = Rating.objects.first()
+    rating.stars += 1
+    rating.save()
+    # this is the query : {'sql': 'UPDATE "core_rating" SET "stars" = 5, "comment" = \'Great food\', "resturant_id" = 1, "user_id" = 1 WHERE "core_rating"."id" = 1', 'time': '0.001'}
+    # so we say set stars = 5 which is taken from the updated value from python app memory
+
+
+def update_rating_oprimized():
+    def send_email(email):
+        print(f'sending email to {email}')
+    with transaction.atomic():
+        rating = Rating.objects.first()
+        rating.stars = F('stars') + 1
+        rating.save()
+        # Todo : to access the stars value after this combinedExpression update, we should call a refresh_from_db() method on the model object
+        rating.refresh_from_db()
+        print(rating.stars)
+        # this is the query : {'sql': 'UPDATE "core_rating" SET "stars" = ("core_rating"."stars" + 1), "comment" = \'Great food\', "resturant_id" = 1, "user_id" = 1 WHERE "core_rating"."id" = 1', 'time': '0.001'}
+        # now we are using the value from the database directly
+    # this is how you can call a function with param using partial and how to trigger a functions defined for being executed after the transaction is committed
+    transaction.on_commit(partial(send_email, 'gamilfady605@gmail.com')) 
+
+#! so basiaclly F() expressions are used to avoid pulling the columns that will be updated in the memory and do the update on the db level
+
+
+def update_rating_optimized_v2():
+    '''and this is the most optimized version of the update with f expression'''
+    rating = Rating.objects.filter(pk=1).update(
+        stars=F('stars') - 1
+    )
+    # this is the query : {{'sql': 'UPDATE "core_rating" SET "stars" = ("core_rating"."stars" - 1) WHERE "core_rating"."id" = 1', 'time': '0.001'}}
+
+
+def get_itialian_or_egyption_resturants():
+    resturants = Resturant.objects.filter(
+        Q(causine=Resturant.CusineType.ITALIAN) | Q(
+            causine=Resturant.CusineType.EGYPTION)
+    )
+    print(resturants)
+
+
+def protect_your_app_from_null_values_using_coalesce():
+    res = Rating.objects.filter(stars__lt=0).aggregate(
+        sum_of_rating=Coalesce(Sum('stars'), 0))
+    print(res)

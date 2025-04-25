@@ -45,7 +45,7 @@ class Rating(models.Model):
 
     def save(self, *args, **kwargs):
         # this will validate the model fields
-        self.full_clean()
+        # self.full_clean()
         # This field will be true for the first time we create the object and false if we are updating the object
         print(self._state.adding)
         # this will call the parent class save method
