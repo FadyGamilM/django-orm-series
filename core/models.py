@@ -62,4 +62,4 @@ class Sale(models.Model):
 # same staff can work on multiple resturants and same resturant can have multiple staff members
 class Staff(models.Model):
     name = models.CharField(max_length=255)
-    resturants = models.ManyToManyField(Resturant)
+    resturants = models.ManyToManyField(Resturant, related_name='staffs')

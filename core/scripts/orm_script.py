@@ -45,7 +45,13 @@ def run():
 
     # create_staff_memeber_record()
 
-    remove_resturant_from_staff_resturants()
+    # remove_resturant_from_staff_resturants()
+
+    # update_existing_association_relation()
+
+    # filter_associations_for_staff()
+
+    filter_associations_for_resturant()
 
     for query in connection.queries:
         print()
@@ -284,7 +290,92 @@ def create_staff_memeber_record():
 
 
 def remove_resturant_from_staff_resturants():
+    '''
+    {'sql': 'SELECT "core_staff"."id", "core_staff"."name" FROM "core_staff" ORDER BY "core_staff"."id" ASC LIMIT 1', 'time': '0.000'}
+
+
+    {'sql': 'SELECT "core_resturant"."id", "core_resturant"."name", "core_resturant"."latitude", "core_resturant"."longitude", "core_resturant"."opened_at", "core_resturant"."website", "core_resturant"."causine" FROM "core_resturant" ORDER BY "core_resturant"."id" ASC LIMIT 1', 'time': '0.000'}
+
+
+    {'sql': 'BEGIN', 'time': '0.000'}
+
+
+    {'sql': 'DELETE FROM "core_staff_resturants" WHERE ("core_staff_resturants"."staff_id" = 1 AND "core_staff_resturants"."resturant_id" IN (1))', 'time': '0.000'}
+
+
+    {'sql': 'COMMIT', 'time': '0.000'}
+    '''
     staff = Staff.objects.first()
     print(staff.resturants)
     staff.resturants.remove(Resturant.objects.first())
     print(staff.resturants)
+
+
+def update_existing_association_relation():
+    '''
+    query if you are calling this function for the first time:
+    > 
+        3
+        {'sql': 'SELECT "core_staff"."id", "core_staff"."name" FROM "core_staff" WHERE "core_staff"."name" = \'ahmed mostafa\' LIMIT 21', 'time': '0.000'}
+
+
+        {'sql': 'SELECT "core_resturant"."id", "core_resturant"."name", "core_resturant"."latitude", "core_resturant"."longitude", "core_resturant"."opened_at", "core_resturant"."website", "core_resturant"."causine" FROM "core_resturant" LIMIT 3', 'time': '0.000'}
+
+
+        {'sql': 'BEGIN', 'time': '0.000'}
+
+
+        {'sql': 'SELECT "core_resturant"."id" AS "id" FROM "core_resturant" INNER JOIN "core_staff_resturants" ON ("core_resturant"."id" = "core_staff_resturants"."resturant_id") WHERE "core_staff_resturants"."staff_id" = 1', 'time': '0.000'}
+
+
+        {'sql': 'INSERT OR IGNORE INTO "core_staff_resturants" ("staff_id", "resturant_id") VALUES (1, 1), (1, 2), (1, 3)', 'time': '0.000'}
+
+
+        {'sql': 'COMMIT', 'time': '0.000'}
+
+
+        {'sql': 'SELECT COUNT(*) AS "__count" FROM "core_staff_resturants" WHERE "core_staff_resturants"."staff_id" = 1', 'time': '0.000'}
+
+    query if you are calling this function for the second time:
+    >
+        3
+        {'sql': 'SELECT "core_staff"."id", "core_staff"."name" FROM "core_staff" WHERE "core_staff". "name" = \'ahmed mostafa\' LIMIT 21', 'time': '0.000'}
+
+
+        {'sql': 'SELECT "core_resturant"."id", "core_resturant"."name", "core_resturant"."latitude", "core_resturant"."longitude", "core_resturant"."opened_at", "core_resturant"."website", "core_resturant"."causine" FROM "core_resturant" LIMIT 3', 'time': '0.000'}
+
+
+        {'sql': 'BEGIN', 'time': '0.000'}
+
+
+        {'sql': 'SELECT "core_resturant"."id" AS "id" FROM "core_resturant" INNER JOIN "core_staff_resturants" ON ("core_resturant"."id" = "core_staff_resturants"."resturant_id") WHERE "core_staff_resturants"."staff_id" = 1', 'time': '0.000'}
+
+
+        {'sql': 'COMMIT', 'time': '0.000'}
+
+
+        {'sql': 'SELECT COUNT(*) AS "__count" FROM "core_staff_resturants" WHERE "core_staff_resturants"."staff_id" = 1', 'time': '0.000'}
+
+    django orm is smart enough to know that the relation is already exists and it will not create a new one, if you run this query again 
+    '''
+    staff_ahmed_mostafa = Staff.objects.get(name='ahmed mostafa')
+    staff_ahmed_mostafa.resturants.set(Resturant.objects.all()[:3])
+    print(staff_ahmed_mostafa.resturants.count())
+
+
+def clear_all_associations_for_staff():
+    staff = Staff.objects.get(name='ahmed mostafa')
+    staff.resturants.clear()
+    print(staff.resturants.count())
+
+
+def filter_associations_for_staff():
+    staff = Staff.objects.get(name='ahmed mostafa')
+    staff_resturants = staff.resturants.filter(name__icontains='marino')
+    print(staff_resturants)
+
+
+def filter_associations_for_resturant():
+    resturant = Resturant.objects.get(pk=1)
+    resturant_staff = resturant.staffs.filter(name__icontains='ahmed')
+    print(resturant_staff)
