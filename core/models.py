@@ -12,6 +12,7 @@ class Resturant(models.Model):
         CHINESE = 'CH', 'Chinese'
         MEXICAN = 'MX', 'Mexican'
         AMERICAN = 'AM', 'American'
+        EGYPTION = 'EG', 'Egyption'
 
     name = models.CharField(max_length=255)
     latitude = models.FloatField(
@@ -56,3 +57,9 @@ class Sale(models.Model):
         Resturant, on_delete=models.CASCADE, related_name='sales')
     saled_at = models.DateTimeField()
     income = models.DecimalField(max_digits=10, decimal_places=2)
+
+
+# same staff can work on multiple resturants and same resturant can have multiple staff members
+class Staff(models.Model):
+    name = models.CharField(max_length=255)
+    resturants = models.ManyToManyField(Resturant)

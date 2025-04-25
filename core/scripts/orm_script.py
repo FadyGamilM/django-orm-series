@@ -1,9 +1,10 @@
-from core.models import Resturant, Rating, Sale
+from core.models import Resturant, Rating, Sale, Staff
 from django.utils import timezone
 from django.db import connection
 from django.contrib.auth.models import User
 from django.db import transaction
 from pprint import pprint
+from django.db.models import Sum, Prefetch
 
 
 def run():
@@ -34,7 +35,17 @@ def run():
 
     # get_all_5_stars_ratings_resturants_and_fetch_their_sales_starting_with_ratings()
 
-    get_all_5_stars_ratings_resturants_and_fetch_their_sales_starting_with_resturants()
+    # get_all_5_stars_ratings_resturants_and_fetch_their_sales_starting_with_resturants()
+
+    # insert_sale_record()
+
+    # get_5_stars_resturants_total_sales()
+
+    # get_5_stars_resturants_total_sales_for_x_months_ago_v1(1)
+
+    # create_staff_memeber_record()
+
+    remove_resturant_from_staff_resturants()
 
     for query in connection.queries:
         print()
@@ -45,11 +56,11 @@ def run():
 
 def create_resturant_record_1():
     resurant = Resturant()
-    resurant.name = 'Italizano'
-    resurant.latitude = 50.3
-    resurant.longitude = 50.301
-    resurant.causine = resurant.CusineType.ITALIAN
-    resurant.opened_at = timezone.now()
+    resurant.name = 'mo bistro'
+    resurant.latitude = 55.0
+    resurant.longitude = 55.1
+    resurant.causine = resurant.CusineType.EGYPTION
+    resurant.opened_at = timezone.now() - timezone.timedelta(days=365*3)
 
     resurant.save()
 
@@ -74,16 +85,25 @@ def rate_resturant_1():
 
 
 def rate_resturant_1_optimized():
-    with transaction.atomic():
-        resturant_id = Resturant.objects.only('id').all()[1]
-        user_id = User.objects.only('id').first()
-        rating = Rating()
-        rating.stars = 4
-        rating.comment = 'Great food'
-        rating.resturant = resturant_id
-        rating.user = user_id
+    try:
+        with transaction.atomic():
+            resturant = Resturant.objects.last()
+            if resturant is None:
+                print('resturant not found')
+                return
+            user = User.objects.only('id').first()
+            if user is None:
+                print('user not found')
+                return
+            rating = Rating()
+            rating.stars = 4
+            rating.comment = 'Great food'
+            rating.resturant = resturant
+            rating.user = user
 
-        rating.save()
+            rating.save()
+    except Exception as ex:
+        print(f'failed to rate a resturant with error = {ex}')
 
 
 def filter_rates_by_stars(stars):
@@ -94,7 +114,7 @@ def filter_rates_by_stars(stars):
 
 def get_resturant_name_by_rating_id(rating_id):
     rating = Rating.objects.get(id=rating_id)
-    resturant = rating.resturant  # NOT VALID and NOT COMPILED
+    resturant = rating.resturant
     print(f'resturant name is {resturant.name} ')
 
 
@@ -206,3 +226,65 @@ def get_all_5_stars_ratings_resturants_and_fetch_their_sales_starting_with_restu
     # 2. Select From Ratings again where resturant_id IN the selected Resturants from query.1
     # -------> (why) this query due to the prefetch_related('ratings')
     # 3. select From Sales where resturant_id IN the selected Resturants from query.1
+
+
+def insert_sale_record():
+    resturant = Resturant.objects.all()[1]
+    sale = Sale()
+    sale.resturant = resturant
+    sale.income = 5060
+    sale.saled_at = timezone.now() - timezone.timedelta(days=1)
+    sale.save()
+
+# Grouping by a field in a many-side relation table
+
+
+def get_5_stars_resturants_total_sales():
+    result = Resturant.objects.prefetch_related('ratings', 'sales').filter(
+        ratings__stars=5).annotate(total_sales_sum=Sum('sales__income'))
+    print(result)
+
+
+def get_5_stars_resturants_total_sales_for_x_months_ago_v1(num_of_months_ago):
+    months_ago_duration = timezone.now() - timezone.timedelta(days=30*num_of_months_ago)
+    result = Resturant.objects.prefetch_related('ratings', 'sales').filter(
+        ratings__stars=5, sales__saled_at__gte=months_ago_duration).annotate(total_sales_sum=Sum('sales__income'))
+    print(result)
+
+
+def get_5_stars_resturants_total_sales_for_x_months_ago_v2(num_of_months_ago):
+    months_ago_duration = timezone.now() - timezone.timedelta(days=30*num_of_months_ago)
+    prefetch_sales = Prefetch('sales', queryset=Sale.objects.filter(
+        saled_at__gte=months_ago_duration))
+    result = Resturant.objects.prefetch_related('ratings', prefetch_sales).filter(
+        ratings__stars=5).annotate(total_sales_sum=Sum('sales__income'))
+    print(result)
+
+
+def create_staff_memeber_record():
+    '''
+    {'sql': 'INSERT INTO "core_staff" ("name") VALUES (\'ahmed mostafa\') RETURNING "core_staff"."id"', 'time': '0.000'}
+
+
+    {'sql': 'SELECT "core_resturant"."id", "core_resturant"."name", "core_resturant"."latitude", "core_resturant"."longitude", "core_resturant"."opened_at", "core_resturant"."website", "core_resturant"."causine" FROM "core_resturant" ORDER BY "core_resturant"."id" ASC LIMIT 1', 'time': '0.000'}
+
+
+    {'sql': 'BEGIN', 'time': '0.000'}
+
+
+    {'sql': 'INSERT OR IGNORE INTO "core_staff_resturants" ("staff_id", "resturant_id") VALUES (1, 1)', 'time': '0.000'}
+
+
+    {'sql': 'COMMIT', 'time': '0.000'}
+    '''
+    staff = Staff()
+    staff.name = 'ahmed mostafa'
+    staff.save()
+    staff.resturants.add(Resturant.objects.first())
+
+
+def remove_resturant_from_staff_resturants():
+    staff = Staff.objects.first()
+    print(staff.resturants)
+    staff.resturants.remove(Resturant.objects.first())
+    print(staff.resturants)
